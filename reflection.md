@@ -1,7 +1,7 @@
 # PawPal+ Project Reflection
 
 ## 1. System Design
-
+- The 3 core actions a user should be able to perform are allowing the user to enter basic information, allowing the user to add and edit tasks, and allowing the user to generate a daily plan based off the contraints they have.
 **a. Initial design**
 
 - Briefly describe your initial UML design.
