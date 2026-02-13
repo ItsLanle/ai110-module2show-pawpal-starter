@@ -7,10 +7,36 @@
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
+The PawPal+ system consists of four main classes:
+
+Owner - Represents the pet owner with time constraints and preferences. Responsibilities include managing a collection of pets, tracking available time (in minutes), and storing user preferences for scheduling. Acts as the primary user entity in the system.
+
+Pet - Represents an individual pet with basic information and care needs. Responsibilities include storing pet details (name, species, age) and managing a list of special needs that affect care requirements. Implemented as a dataclass for simplicity.
+
+Task - Represents a care activity with scheduling metadata. Responsibilities include storing task details (name, duration, category), maintaining priority levels (1-5), and indicating whether the task is required. Supports comparison operations for priority-based sorting. Implemented as a dataclass and optionally linked to a specific pet.
+
+Scheduler - The central coordinator that connects all components. Responsibilities include managing the owner's schedule, organizing tasks based on priority and time constraints, and generating an optimized daily care plan that respects the owner's available minutes and pet needs.
+
+Key relationships: Owner owns multiple Pets (1-to-many), and Scheduler uses Owner, Pets, and Tasks to create scheduling plans.
+
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+
+Yes, several design changes were made during implementation to address critical relationship and logic bottlenecks:
+
+1. **Added Bidirectional Owner-Pet Relationship**: Initially, the Pet class had no reference back to its Owner. I added an `owner` field to Pet so that a pet can identify which owner it belongs to. This enables validation (e.g., preventing tasks for pets the owner doesn't have) and allows direct pet-to-owner navigation.
+
+2. **Added Bidirectional Task-Pet Tracking**: The original design allowed Task to reference Pet, but Pet had no way to access its tasks. I added a `tasks` field to Pet, creating a bidirectional association. This allows querying "what tasks are associated with this pet?" which is essential for care planning and pet-specific task management.
+
+3. **Removed Redundant Scheduler.pets**: Initially, Scheduler maintained its own `self.pets` list separate from `self.owner.pets`. This created data consistency issues. I removed the redundant list and now Scheduler accesses pets through `self.owner.pets`, establishing a single source of truth.
+
+4. **Two-Pass Scheduling Algorithm**: The initial generate_daily_plan() stub gave no guidance on implementation. I implemented a constraint-aware two-pass algorithm: first schedule all required tasks (with validation that they fit), then greedily add optional tasks by priority. This ensures feasibility and prevents over-scheduling.
+
+5. **Enhanced Validation**: Added pet ownership validation in `add_task()` to prevent orphaned tasks, and priority range validation in `set_priority()` to prevent invalid states.
+
+These changes were made because the original design had information asymmetry and lacked constraint enforcement, which would cause runtime errors or impossible schedules. The bidirectional relationships create a more robust model that prevents invalid states at insertion time rather than discovery time.
 
 ---
 
