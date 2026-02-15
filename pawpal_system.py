@@ -18,86 +18,45 @@ class Owner:
     """
 
     def __init__(self, name: str, available_min: int):
-        """
-        Initialize an Owner with name and available minutes.
-
-        Args:
-            name: The owner's name
-            available_min: Available minutes per day for pet care
-        """
+        """Initialize Owner with name and available minutes."""
         self.name: str = name
         self.available_minutes: int = available_min
         self.preferences: dict = {}
         self.pets: list[Pet] = []
 
     def add_pet(self, pet: 'Pet') -> None:
-        """
-        Add a pet to the owner's collection.
-
-        Args:
-            pet: The Pet object to add
-        """
+        """Add a pet to the owner's collection."""
         if pet not in self.pets:
             self.pets.append(pet)
             pet.owner = self
 
     def remove_pet(self, pet: 'Pet') -> None:
-        """
-        Remove a pet from the owner's collection.
-
-        Args:
-            pet: The Pet object to remove
-        """
+        """Remove a pet from the owner's collection."""
         if pet in self.pets:
             self.pets.remove(pet)
             pet.owner = None
 
     def get_available_time(self) -> int:
-        """
-        Get the owner's available time in minutes.
-
-        Returns:
-            Available minutes for pet care
-        """
+        """Return the owner's available time in minutes."""
         return self.available_minutes
 
     def update_preferences(self, preferences: dict) -> None:
-        """
-        Update the owner's preferences for pet care.
-
-        Args:
-            preferences: Dictionary of preference key-value pairs
-        """
+        """Update the owner's preference dictionary."""
         self.preferences.update(preferences)
 
     def get_all_tasks(self) -> list['Task']:
-        """
-        Get all tasks from all pets owned by this owner.
-
-        Returns:
-            List of all tasks across all pets
-        """
+        """Return a list of all tasks across the owner's pets."""
         all_tasks = []
         for pet in self.pets:
             all_tasks.extend(pet.tasks)
         return all_tasks
 
     def get_pets(self) -> list['Pet']:
-        """
-        Get the list of pets owned by this owner.
-
-        Returns:
-            List of Pet objects
-        """
+        """Return a copy of the owner's pet list."""
         return self.pets.copy()
 
     def __str__(self) -> str:
-        """
-        Return a string representation of the owner.
-
-        Returns:
-            String describing the owner
-        """
+        """Return a string describing the owner."""
         pet_count = len(self.pets)
         pet_word = "pet" if pet_count == 1 else "pets"
         return f"Owner: {self.name} | Available Time: {self.available_minutes}min | {pet_count} {pet_word}"
@@ -119,45 +78,25 @@ class Pet:
     tasks: list['Task'] = field(default_factory=list)
 
     def add_special_need(self, need: str) -> None:
-        """
-        Add a special need or care requirement for the pet.
-
-        Args:
-            need: Description of the special need
-        """
+        """Add a special care need for the pet."""
         if need not in self.special_needs:
             self.special_needs.append(need)
 
     def add_task(self, task: 'Task') -> None:
-        """
-        Add a task to the pet's task list.
-
-        Args:
-            task: The Task object to add
-        """
+        """Add a Task to the pet's tasks list."""
         if task not in self.tasks:
             self.tasks.append(task)
             task.pet = self
 
     def remove_task(self, task: 'Task') -> None:
-        """
-        Remove a task from the pet's task list.
-
-        Args:
-            task: The Task object to remove
-        """
+        """Remove a Task from the pet's tasks list."""
         if task in self.tasks:
             self.tasks.remove(task)
             if task.pet == self:
                 task.pet = None
 
     def get_care_requirements(self) -> dict:
-        """
-        Get all care requirements for this pet.
-
-        Returns:
-            Dictionary with pet info and count of tasks
-        """
+        """Return basic care info and task count for the pet."""
         return {
             'name': self.name,
             'species': self.species,
@@ -167,21 +106,11 @@ class Pet:
         }
 
     def get_tasks(self) -> list['Task']:
-        """
-        Get the list of tasks for this pet.
-
-        Returns:
-            List of Task objects
-        """
+        """Return a copy of the pet's task list."""
         return self.tasks.copy()
 
     def __str__(self) -> str:
-        """
-        Return a string representation of the pet.
-
-        Returns:
-            String describing the pet
-        """
+        """Return a string describing the pet."""
         task_count = len(self.tasks)
         special_needs_str = f" | Special needs: {len(self.special_needs)}" if self.special_needs else ""
         return f"{self.name} ({self.species}, {self.age} years old) | Tasks: {task_count}{special_needs_str}"
@@ -205,73 +134,37 @@ class Task:
     pet: Optional[Pet] = None
 
     def is_required(self) -> bool:
-        """
-        Check if this task is required.
-
-        Returns:
-            True if task is required, False otherwise
-        """
+        """Return True if the task is required, else False."""
         return self.required
 
     def get_priority(self) -> int:
-        """
-        Get the priority level of this task.
-
-        Returns:
-            Priority value (1-5)
-        """
+        """Return the task's priority level (1-5)."""
         return self.priority
 
     def set_priority(self, value: int) -> None:
-        """
-        Set the priority level for this task.
-
-        Args:
-            value: Priority value (1-5)
-
-        Raises:
-            ValueError: If priority is not between 1 and 5
-        """
+        """Set the task's priority, validating it's between 1 and 5."""
         if 1 <= value <= 5:
             self.priority = value
         else:
             raise ValueError("Priority must be between 1 and 5")
 
     def mark_complete(self) -> None:
-        """
-        Mark the task as complete.
-        """
+        """Mark the task as complete."""
         self.completion_status = True
 
     def mark_incomplete(self) -> None:
-        """
-        Mark the task as incomplete.
-        """
+        """Mark the task as incomplete."""
         self.completion_status = False
 
     def __str__(self) -> str:
-        """
-        Return a string representation of the task.
-
-        Returns:
-            String describing the task
-        """
+        """Return a string describing the task."""
         pet_info = f" for {self.pet.name}" if self.pet else ""
         req_status = "(Required)" if self.required else "(Optional)"
         completion = "Completed" if self.completion_status else "Pending"
         return f"{self.name}{pet_info} - {self.duration}min, Priority: {self.priority}/5 {req_status} [{completion}]"
 
     def __lt__(self, other: 'Task') -> bool:
-        """
-        Compare tasks for sorting by priority.
-        Higher priority comes first (reverse comparison).
-
-        Args:
-            other: Another Task object to compare with
-
-        Returns:
-            True if this task should come before other in sorted order
-        """
+        """Compare tasks for sorting with required first and higher priority earlier."""
         # Required tasks come before optional tasks
         if self.required != other.required:
             return self.required  # Required (True) comes before Optional (False)
@@ -288,42 +181,21 @@ class Scheduler:
     """
 
     def __init__(self, owner: Owner):
-        """
-        Initialize a Scheduler for a given owner.
-        Extracts pets from owner and collects all tasks from all pets.
-
-        Args:
-            owner: The Owner object to create schedules for
-        """
+        """Initialize Scheduler for the given Owner."""
         self.owner: Owner = owner
         self.pets: list[Pet] = owner.get_pets()
         self.tasks: list[Task] = owner.get_all_tasks()
         self.daily_plan: list[Task] = []
 
     def get_all_pet_tasks(self) -> list[Task]:
-        """
-        Retrieve all tasks from the owner's pets.
-        
-        Aggregates tasks across all pets owned by this owner.
-
-        Returns:
-            List of all tasks associated with owner's pets
-        """
+        """Return a list of all tasks from the owner's pets."""
         all_tasks = []
         for pet in self.owner.pets:
             all_tasks.extend(pet.tasks)
         return all_tasks
 
     def add_task(self, task: Task) -> None:
-        """
-        Add a task to the scheduler.
-
-        Args:
-            task: The Task object to add
-            
-        Raises:
-            ValueError: If task is associated with a pet not owned by this owner
-        """
+        """Add a Task to the scheduler, validating pet ownership."""
         if task.pet is not None and task.pet not in self.owner.pets:
             raise ValueError(f"Task is for pet {task.pet.name}, which is not owned by {self.owner.name}")
         
@@ -333,52 +205,23 @@ class Scheduler:
                 task.pet.tasks.append(task)
 
     def remove_task(self, task: Task) -> None:
-        """
-        Remove a task from the scheduler.
-
-        Args:
-            task: The Task object to remove
-        """
+        """Remove a Task from the scheduler and its pet if present."""
         if task in self.tasks:
             self.tasks.remove(task)
             if task.pet and task in task.pet.tasks:
                 task.pet.tasks.remove(task)
 
     def prioritize_tasks(self) -> list[Task]:
-        """
-        Sort and prioritize tasks based on priority level and requirements.
-
-        Returns:
-            Sorted list of tasks by priority (highest priority first, required tasks first)
-        """
+        """Return tasks sorted by requirement and priority."""
         return sorted(self.tasks, reverse=False)  # __lt__ already implements correct ordering
 
     def calculate_total_time(self, tasks: Optional[list[Task]] = None) -> int:
-        """
-        Calculate the total time required for tasks.
-
-        Args:
-            tasks: List of tasks to calculate time for. If None, uses daily_plan.
-
-        Returns:
-            Total minutes required
-        """
+        """Calculate total duration (minutes) for given tasks or the daily plan."""
         task_list = tasks if tasks is not None else self.daily_plan
         return sum(task.duration for task in task_list)
 
     def generate_daily_plan(self) -> list[Task]:
-        """
-        Generate a daily plan of tasks based on priorities and available time.
-        
-        Includes all required tasks that fit within available time, then optional
-        tasks in priority order up to the time limit.
-
-        Returns:
-            List of tasks in the daily plan
-            
-        Raises:
-            ValueError: If required tasks exceed available time
-        """
+        """Generate a daily task plan honoring required tasks and time limits."""
         prioritized = self.prioritize_tasks()
         available_time = self.owner.get_available_time()
         self.daily_plan = []
@@ -406,25 +249,12 @@ class Scheduler:
         return self.daily_plan
 
     def optimize_schedule(self) -> list[Task]:
-        """
-        Optimize the schedule to maximize high-priority and required tasks within time limit.
-
-        Reorganizes the daily_plan to ensure required tasks are included first,
-        followed by highest priority optional tasks that fit within the available time.
-
-        Returns:
-            Optimized list of tasks in the daily plan
-        """
+        """Optimize and return the daily plan prioritizing required and high-priority tasks."""
         # Use generate_daily_plan which already implements optimal scheduling
         return self.generate_daily_plan()
 
     def get_plan_summary(self) -> dict:
-        """
-        Get a summary of the current daily plan.
-
-        Returns:
-            Dictionary with total_time, task_count, tasks_included, tasks_excluded
-        """
+        """Return a summary dict for the current daily plan."""
         total_time = self.calculate_total_time()
         task_count = len(self.daily_plan)
 
