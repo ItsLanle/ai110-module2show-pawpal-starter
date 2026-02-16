@@ -45,12 +45,30 @@ These changes were made because the original design had information asymmetry an
 **a. Constraints and priorities**
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
+    The scheduler first respects hard constraints like required tasks and the owner’s available time, ensuring essential pet care is never missed. Optional tasks are added based on priority, and tasks with specific times are scheduled accordingly. Owner preferences (e.g., focus on health or preferred time of day) are considered but do not override critical constraints. This approach balances safety, efficiency, and flexibility.
 - How did you decide which constraints mattered most?
+    The scheduler focuses first on hard constraints (required tasks and time), then soft constraints (priority, scheduled time, preferences). This ensures safety and usability while still giving flexibility for optional activities.
+
+    Required tasks first: Safety and health-related tasks (e.g., medication, feeding) are critical, so they are always scheduled before optional activities.
+
+    Time limitations next: The owner’s daily availability is a hard limit, so no tasks are scheduled beyond the total available minutes.
+    
+    Priority within optional tasks: Among tasks that aren’t strictly required, the scheduler uses the priority rating to decide what to include if time is limited.
+
+    Scheduled times as a tie-breaker: When multiple tasks compete, tasks with a specific time take precedence in the daily plan to preserve consistency with the owner’s schedule.
+
+    Preferences are secondary: Preferences inform the scheduler but do not override hard constraints like required tasks or available time.
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
+- Describe one tradeoff your scheduler makes.   
+    One tradeoff the scheduler currently makes is that it only detects exact time matches for tasks when checking conflicts. 
+    This means it does not detect overlapping durations—for example, a 30-minute walk starting at 09:00 and a 20-minute feeding at 09:15 would not be flagged as a conflict. 
+    This simplifies the algorithm and makes it faster, but it may miss some practical scheduling conflicts.
 - Why is that tradeoff reasonable for this scenario?
+    The tradeoff prioritizes simplicity, clarity, and usability over exhaustive conflict detection, which is appropriate given the scope of the PawPal+ app.
+
+
 
 ---
 
@@ -59,13 +77,17 @@ These changes were made because the original design had information asymmetry an
 **a. How you used AI**
 
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
+    AI tools were used throughout the project for design brainstorming, debugging, and refactoring. They helped generate example class structures, suggest methods for sorting and scheduling tasks, and troubleshoot errors in the CLI script.
+
 - What kinds of prompts or questions were most helpful?
+    Prompts that were most helpful included asking for step-by-step Python implementations, requests to “rewrite code with all comments intact,” and clarifying how to automatically reschedule recurring tasks.
 
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
+    One moment I didn’t accept an AI suggestion as-is was when it proposed a “Pythonic” one-liner to sort tasks. While the code was technically correct, it was harder for a human reader to follow, especially with multiple conditions like required status and priority. 
 - How did you evaluate or verify what the AI suggested?
-
+    I evaluated the suggestion by manually tracing the logic on sample tasks and comparing the output to my existing method to ensure it maintained the correct order and readability. I ultimately kept my original version for clarity.
 ---
 
 ## 4. Testing and Verification
@@ -73,13 +95,26 @@ These changes were made because the original design had information asymmetry an
 **a. What you tested**
 
 - What behaviors did you test?
+    I tested several key behaviors of the scheduler:
+    Task sorting by time – to ensure tasks appear in chronological order regardless of the order they were added.
+    Time conflict detection – to verify that overlapping tasks were flagged correctly.
+    Filtering tasks – by pet and by required status, to confirm accurate selection.
+    Daily plan generation – to make sure required tasks fit within the owner's available time and optional tasks were added when possible.
+    Auto-rescheduling recurring tasks – to ensure “daily” and “weekly” tasks generate a new instance after completion.
+    
 - Why were these tests important?
-
+    These tests were important because they confirmed that the scheduler reliably prioritizes tasks, respects time limits, and handles recurring events — all core functionalities of the system.
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
-- What edge cases would you test next if you had more time?
+    I am confident that the scheduler works correctly for the scenarios tested, including out-of-order tasks, required vs optional tasks, and time conflicts.
 
+- What edge cases would you test next if you had more time?
+    If I had more time, I would test additional edge cases such as:
+    Tasks that partially overlap in duration, not just exact start times.
+    Zero-duration tasks or tasks longer than the owner's available time.
+    Pets with no tasks or an owner with no available time.
+    Simultaneous recurring tasks to check for proper scheduling of multiple next occurrences.
 ---
 
 ## 5. Reflection

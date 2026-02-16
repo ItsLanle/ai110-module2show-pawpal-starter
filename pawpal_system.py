@@ -150,9 +150,50 @@ class Task:
         else:
             raise ValueError("Priority must be between 1 and 5")
 
-    def mark_complete(self) -> None:
-        """Mark the task as complete."""
+    def mark_complete(self) -> Optional['Task']:
+        """
+        Mark the task as complete.
+        If the task is recurring (daily or weekly),
+        automatically create and attach the next occurrence.
+        Returns the new task if created.
+        """
+        if self.completion_status:
+            return None  # Prevent double completion
+
         self.completion_status = True
+
+        # Only reschedule recurring tasks
+        if self.frequency not in ("daily", "weekly"):
+            return None
+
+        # Determine next due date
+        if not self.due_date:
+            next_due = datetime.now()
+        else:
+            next_due = self.due_date
+
+        if self.frequency == "daily":
+            next_due += timedelta(days=1)
+        elif self.frequency == "weekly":
+            next_due += timedelta(weeks=1)
+
+        # Create new task instance
+        new_task = Task(
+            name=self.name,
+            duration=self.duration,
+            priority=self.priority,
+            category=self.category,
+            required=self.required,
+            frequency=self.frequency,
+            time=self.time,
+            due_date=next_due
+        )
+
+    # Attach to same pet
+    if self.pet:
+        self.pet.add_task(new_task)
+    return new_task
+
 
     def mark_incomplete(self) -> None:
         """Mark the task as incomplete."""
@@ -324,10 +365,15 @@ class Scheduler:
         }
 
     def detect_time_conflicts(self, tasks: Optional[list[Task]] = None) -> list[str]:
-        """
-        Detects tasks scheduled at the same time.
-        Returns a list of warning messages instead of raising errors.
-        """
+         """
+    Detect tasks scheduled at the same time.
+
+    Args:
+        tasks (Optional[list[Task]]): A list of tasks to check. Defaults to all tasks.
+
+    Returns:
+        list[str]: A list of warning messages indicating conflicts.
+    """
         task_list = tasks if tasks is not None else self.get_all_tasks()
         warnings = []
 
