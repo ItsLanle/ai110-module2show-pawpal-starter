@@ -7,6 +7,7 @@ including owners, pets, tasks, and a scheduler for generating daily plans.
 
 from dataclasses import dataclass, field
 from typing import Optional
+from datetime import datetime, timedelta
 
 
 class Owner:
@@ -69,7 +70,6 @@ class Pet:
 
     Tracks pet details including species, age, and any special care requirements.
     """
-
     name: str
     species: str
     age: int
@@ -119,19 +119,21 @@ class Pet:
 @dataclass
 class Task:
     """
-    Represents a pet care task with duration, priority, and category.
+    Represents a pet care task with duration, priority, category, and time.
 
     Tasks can be required or optional and may be associated with a specific pet.
+    The time attribute (format "HH:MM") allows time-based scheduling.
     """
-
     name: str
     duration: int
     priority: int  # 1-5 scale
     category: str
     required: bool
     frequency: str = "daily"
+    time: Optional[str] = None  # Scheduled time in "HH:MM" format
     completion_status: bool = False
     pet: Optional[Pet] = None
+    due_date: Optional[datetime] = None
 
     def is_required(self) -> bool:
         """Return True if the task is required, else False."""
@@ -159,17 +161,61 @@ class Task:
     def __str__(self) -> str:
         """Return a string describing the task."""
         pet_info = f" for {self.pet.name}" if self.pet else ""
+        time_info = f" @ {self.time}" if self.time else ""
         req_status = "(Required)" if self.required else "(Optional)"
         completion = "Completed" if self.completion_status else "Pending"
-        return f"{self.name}{pet_info} - {self.duration}min, Priority: {self.priority}/5 {req_status} [{completion}]"
+        return (
+            f"{self.name}{pet_info}{time_info} - "
+            f"{self.duration}min, Priority: {self.priority}/5 "
+            f"{req_status} [{completion}]"
+        )
 
     def __lt__(self, other: 'Task') -> bool:
-        """Compare tasks for sorting with required first and higher priority earlier."""
-        # Required tasks come before optional tasks
+        """
+        Compare tasks for sorting:
+        Required tasks come first,
+        then higher priority tasks.
+        """
         if self.required != other.required:
-            return self.required  # Required (True) comes before Optional (False)
-        # Higher priority values come first (reverse comparison)
+            return self.required
         return self.priority > other.priority
+
+    def complete_and_reschedule(self) -> Optional['Task']:
+        """Marks the task complete and creates a new instance
+        if the task is recurring (daily or weekly)."""
+        self.mark_complete()
+
+        if self.frequency not in ("daily", "weekly"):
+            return None
+
+        # Determine next due date
+        if not self.due_date:
+            next_due = datetime.now()
+        else:
+            next_due = self.due_date
+
+        if self.frequency == "daily":
+            next_due += timedelta(days=1)
+        elif self.frequency == "weekly":
+            next_due += timedelta(weeks=1)
+
+        # Create new task instance
+        new_task = Task(
+            name=self.name,
+            duration=self.duration,
+            priority=self.priority,
+            category=self.category,
+            required=self.required,
+            frequency=self.frequency,
+            time=self.time,
+            due_date=next_due
+        )
+
+        # Attach to same pet
+        if self.pet:
+            self.pet.add_task(new_task)
+
+        return new_task
 
 
 class Scheduler:
@@ -177,43 +223,47 @@ class Scheduler:
     Manages scheduling of pet care tasks for an owner.
 
     Generates optimized daily plans based on available time, task priorities,
-    and pet care requirements.
+    and time-based scheduling when provided.
     """
 
     def __init__(self, owner: Owner):
         """Initialize Scheduler for the given Owner."""
         self.owner: Owner = owner
         self.pets: list[Pet] = owner.get_pets()
-        self.tasks: list[Task] = owner.get_all_tasks()
+        self.tasks: list[Task] = self.get_all_tasks()
         self.daily_plan: list[Task] = []
 
-    def get_all_pet_tasks(self) -> list[Task]:
-        """Return a list of all tasks from the owner's pets."""
-        all_tasks = []
-        for pet in self.owner.pets:
-            all_tasks.extend(pet.tasks)
-        return all_tasks
+    def get_all_tasks(self) -> list[Task]:
+        """Always fetch the latest tasks from the owner."""
+        return self.owner.get_all_tasks()
 
-    def add_task(self, task: Task) -> None:
-        """Add a Task to the scheduler, validating pet ownership."""
-        if task.pet is not None and task.pet not in self.owner.pets:
-            raise ValueError(f"Task is for pet {task.pet.name}, which is not owned by {self.owner.name}")
-        
-        if task not in self.tasks:
-            self.tasks.append(task)
-            if task.pet:
-                task.pet.tasks.append(task)
-
-    def remove_task(self, task: Task) -> None:
-        """Remove a Task from the scheduler and its pet if present."""
-        if task in self.tasks:
-            self.tasks.remove(task)
-            if task.pet and task in task.pet.tasks:
-                task.pet.tasks.remove(task)
 
     def prioritize_tasks(self) -> list[Task]:
         """Return tasks sorted by requirement and priority."""
-        return sorted(self.tasks, reverse=False)  # __lt__ already implements correct ordering
+        return sorted(self.get_all_tasks())
+
+
+    def sort_by_time(self, tasks: Optional[list[Task]] = None) -> list[Task]:
+        """
+        Sort tasks by their time attribute ("HH:MM").
+
+        Tasks without a time are placed at the end.
+        Uses Python's sorted() with a lambda key function.
+        """
+        task_list = tasks if tasks is not None else self.get_all_tasks()
+
+        # Helper function to convert "HH:MM" to total minutes
+        def time_to_minutes(time_str: str) -> int:
+            hours, minutes = map(int, time_str.split(":"))
+            return hours * 60 + minutes
+
+        return sorted(
+            task_list,
+            key=lambda t: (
+                t.time is None,  # Timed tasks first, untimed last
+                time_to_minutes(t.time) if t.time else float("inf")
+            )
+        )
 
     def calculate_total_time(self, tasks: Optional[list[Task]] = None) -> int:
         """Calculate total duration (minutes) for given tasks or the daily plan."""
@@ -221,48 +271,50 @@ class Scheduler:
         return sum(task.duration for task in task_list)
 
     def generate_daily_plan(self) -> list[Task]:
-        """Generate a daily task plan honoring required tasks and time limits."""
+        """
+        Generate a daily task plan honoring required tasks,
+        priority order, available time limits,
+        and finally sorting by scheduled time.
+        """
         prioritized = self.prioritize_tasks()
         available_time = self.owner.get_available_time()
         self.daily_plan = []
         total_time = 0
-        
+
         # First pass: add all required tasks
         required_tasks = [t for t in prioritized if t.required]
         required_time = self.calculate_total_time(required_tasks)
-        
+
         if required_time > available_time:
             raise ValueError(
                 f"Required tasks ({required_time}min) exceed available time ({available_time}min)"
             )
-        
+
         self.daily_plan.extend(required_tasks)
         total_time = required_time
-        
+
         # Second pass: add optional tasks in priority order
         optional_tasks = [t for t in prioritized if not t.required]
         for task in optional_tasks:
             if total_time + task.duration <= available_time:
                 self.daily_plan.append(task)
                 total_time += task.duration
-        
-        return self.daily_plan
 
-    def optimize_schedule(self) -> list[Task]:
-        """Optimize and return the daily plan prioritizing required and high-priority tasks."""
-        # Use generate_daily_plan which already implements optimal scheduling
-        return self.generate_daily_plan()
+        # Final step: sort selected tasks by time (if provided)
+        self.daily_plan = self.sort_by_time(self.daily_plan)
+
+        return self.daily_plan
 
     def get_plan_summary(self) -> dict:
         """Return a summary dict for the current daily plan."""
         total_time = self.calculate_total_time()
         task_count = len(self.daily_plan)
 
-        # Get tasks included in the plan
         tasks_included = [task.name for task in self.daily_plan]
-
-        # Get tasks excluded from the plan
-        tasks_excluded = [task.name for task in self.tasks if task not in self.daily_plan]
+        tasks_excluded = [
+            task.name for task in self.get_all_tasks()
+            if task not in self.daily_plan
+]
 
         return {
             'total_time': total_time,
@@ -270,3 +322,31 @@ class Scheduler:
             'tasks_included': tasks_included,
             'tasks_excluded': tasks_excluded
         }
+
+    def detect_time_conflicts(self, tasks: Optional[list[Task]] = None) -> list[str]:
+        """
+        Detects tasks scheduled at the same time.
+        Returns a list of warning messages instead of raising errors.
+        """
+        task_list = tasks if tasks is not None else self.get_all_tasks()
+        warnings = []
+
+        time_map = {}
+
+        for task in task_list:
+            if not task.time:
+                continue
+
+            if task.time not in time_map:
+                time_map[task.time] = [task]
+            else:
+                time_map[task.time].append(task)
+
+        for time, tasks_at_time in time_map.items():
+            if len(tasks_at_time) > 1:
+                task_names = ", ".join(
+                    f"{t.name} ({t.pet.name})" for t in tasks_at_time
+                )
+                warnings.append(f"⚠️ Conflict at {time}: {task_names}")
+
+        return warnings
